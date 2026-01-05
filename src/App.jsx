@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import GlobalStyles from './components/GlobalStyles';
 import FormInput from './components/FormInput';
 import PreviewSection from './components/PreviewSection';
+import logo from '/src/assets/NS_white_01.png';
 import './App.css';
 import './styles/global.css';
 import './styles/desktop.css';
@@ -37,11 +38,7 @@ export default function App() {
       <GlobalStyles />
       <div className="app-header">
         <div className="header-logo">
-          <svg width="50" height="50" viewBox="0 0 100 100" fill="none">
-            <path d="M50 10 L80 35 L50 60 L20 35 Z" fill="#3B82F6"/>
-            <path d="M50 60 L80 85 L50 110" fill="#60A5FA"/>
-            <path d="M50 60 L20 85 L50 110" fill="#93C5FD"/>
-          </svg>
+          <img src={logo} alt="Logo" className="logo-img" />
         </div>
         <div className="header-content">
           <div className="header-title">Generator Surat Penawaran</div>
@@ -61,7 +58,7 @@ export default function App() {
 
       <div className="app-footer">
         <div className="footer-text">
-          © 2025 Generator Surat Penawaran | Dibuat dengan ❤️ menggunakan <a href="https://react.dev" className="footer-link" target="_blank" rel="noopener noreferrer">React</a> & <a href="https://vitejs.dev" className="footer-link" target="_blank" rel="noopener noreferrer">Vite</a>
+          © 2022 PT Nuansa Solution | Generator Surat Penawaran
         </div>
       </div>
     </>
