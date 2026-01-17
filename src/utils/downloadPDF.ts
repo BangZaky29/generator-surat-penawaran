@@ -2,65 +2,82 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import React from 'react';
 
-export const downloadPDF = async (ref: React.RefObject<HTMLDivElement>, filename: string) => {
+export const downloadPDF = async (ref: React.RefObject<HTMLDivElement>, filename: string): Promise<boolean> => {
   const element = ref.current;
-  if (!element) return;
+  if (!element) return false;
 
-  // 1. Buat container sementara yang tersembunyi
-  // Ini berguna untuk merender ulang surat dalam ukuran aslinya (tanpa CSS scale)
-  // dan terisolasi dari layout mobile yang sempit.
+  // 1. Setup container sementara dengan ukuran fixed A4 (dalam pixel di 96 DPI)
+  // Menggunakan pixel lebih stabil untuk html2canvas daripada mm
+  const a4WidthPx = 794; // approx 210mm @ 96dpi
+  
   const container = document.createElement('div');
   container.style.position = 'fixed';
   container.style.top = '-10000px';
   container.style.left = '-10000px';
   container.style.zIndex = '-100';
-  container.style.width = '210mm'; // Paksa lebar A4
-  container.style.height = 'auto';
+  // PENTING: Set lebar fix agar layout teks sama persis dengan preview desktop
+  container.style.width = `${a4WidthPx}px`; 
+  container.style.height = 'auto'; // Biarkan tinggi mengikuti konten
+  container.style.backgroundColor = '#ffffff';
   
-  // 2. Clone elemen surat
+  // 2. Clone element
   const clone = element.cloneNode(true) as HTMLElement;
   
-  // Reset style yang mungkin mengganggu rendering di clone
+  // Reset style clone untuk memastikan pas di container
   clone.style.transform = 'none';
   clone.style.margin = '0';
+  clone.style.padding = '25mm'; // Pastikan padding hardcoded sesuai PreviewSurat
   clone.style.boxShadow = 'none';
+  clone.style.width = '100%'; // Full width container
+  clone.style.height = 'auto';
+  clone.style.minHeight = '1123px'; // approx 297mm (A4 height)
   
   container.appendChild(clone);
   document.body.appendChild(container);
 
+  // Tunggu sebentar untuk memastikan render font/image selesai di clone
+  await new Promise(resolve => setTimeout(resolve, 100));
+
   try {
-    // 3. Capture dari clone, BUKAN dari elemen asli
+    // 3. Capture dengan html2canvas
     const canvas = await html2canvas(clone, {
-      scale: 2, // Resolusi tinggi (2x) agar teks tajam
-      useCORS: true, // Handle gambar cross-origin
+      scale: 2, // Kualitas retina (2x) agar teks tajam
+      useCORS: true,
       logging: false,
       backgroundColor: '#ffffff',
-      // PENTING UNTUK MOBILE:
-      // Paksa html2canvas "berpikir" dia sedang berjalan di layar lebar (desktop).
-      // Ini mencegah teks menumpuk/wrapping karena lebar layar HP yang sempit.
-      windowWidth: 1200, 
-      width: container.offsetWidth, // Pastikan capture sesuai lebar container (210mm)
-      x: 0,
-      y: 0
+      width: a4WidthPx, // Paksa lebar capture sesuai container
+      windowWidth: 1200, // Simulasi window desktop
     });
 
     const imgData = canvas.toDataURL('image/jpeg', 1.0);
     
-    // Dimensi A4 dalam mm
-    const pdfWidth = 210;
-    const pdfHeight = 297;
-    
+    // 4. Setup PDF (A4)
     const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = 210; // Lebar A4 dalam mm
+    const pdfPageHeight = 297; // Tinggi A4 dalam mm
     
-    // Masukkan gambar ke PDF
+    // 5. Hitung tinggi gambar berdasarkan rasio asli Canvas
+    // Ini adalah KUNCI agar gambar tidak "PEYANG" (distorsi).
+    // Rumus: Tinggi PDF = (Tinggi Canvas / Lebar Canvas) * Lebar PDF
+    const imgProps = pdf.getImageProperties(imgData);
+    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+    // Masukkan gambar. 
+    // Jika konten lebih panjang dari 1 halaman, logic ini akan memanjangkan gambar (bisa terpotong saat print fisik jika > 297mm).
+    // Tapi secara visual digital file PDF akan proporsional (tidak gepeng).
     pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
     
     pdf.save(`${filename}.pdf`);
+    return true;
+
   } catch (error) {
     console.error('Error generating PDF:', error);
     alert('Gagal membuat PDF. Silakan coba lagi.');
+    return false;
   } finally {
-    // 4. Bersihkan container sementara dari DOM
-    document.body.removeChild(container);
+    // 6. Cleanup
+    if (document.body.contains(container)) {
+      document.body.removeChild(container);
+    }
   }
 };

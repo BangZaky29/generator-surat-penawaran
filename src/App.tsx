@@ -28,10 +28,12 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+    // Ubah min-h-screen menjadi h-screen agar scroll di handle oleh area masing-masing
+    <div className="h-screen bg-gray-50 flex flex-col font-sans overflow-hidden">
       <Header />
 
-      <main className="flex-1 max-w-7xl mx-auto w-full p-4 sm:p-6 lg:p-8 gap-8 grid grid-cols-1 lg:grid-cols-12 h-[calc(100vh-64px)] overflow-hidden relative">
+      {/* Main Content: flex-1 akan otomatis mengisi sisa ruang setelah Header */}
+      <main className="flex-1 max-w-7xl mx-auto w-full p-4 sm:p-6 lg:p-8 gap-8 grid grid-cols-1 lg:grid-cols-12 overflow-hidden relative">
         
         {/* Left Column: Form Input */}
         <div className={`lg:col-span-5 h-full flex-col ${mobileTab === 'form' ? 'flex' : 'hidden lg:flex'}`}>
@@ -48,17 +50,13 @@ const App: React.FC = () => {
         <div className={`lg:col-span-7 h-full flex-col overflow-hidden ${mobileTab === 'preview' ? 'flex' : 'hidden lg:flex'}`}>
           {/* 
               Preview Container:
-              - overflow-x-hidden: Mencegah scroll horizontal (geser kanan/kiri).
-              - py-8: Memberi ruang vertikal.
-              - items-center: Memastikan konten visual (surat) berada persis di tengah.
+              Menggunakan h-full agar scrollbar muncul di dalam container ini
           */}
           <div className="flex-1 overflow-y-auto overflow-x-hidden bg-gray-200/50 rounded-xl border border-gray-200 shadow-inner py-8 flex flex-col items-center relative custom-scrollbar w-full">
             
             {/* 
                Preview Wrapper:
-               - Scale disesuaikan lebih kecil (0.4 di mobile) agar muat di layar sempit (320px-360px).
-               - Negative margins dihitung ulang berdasarkan scale untuk menghilangkan gap vertikal.
-               - Rumus estimasi: -mb = 297mm * (1 - scale)
+               Scaling responsive untuk berbagai ukuran layar
             */}
             <div className="
               scale-[0.4] -mb-[179mm] 
@@ -72,11 +70,12 @@ const App: React.FC = () => {
                <PreviewSurat ref={previewRef} data={suratData} />
             </div>
 
-            {/* Download Section - Margin top disesuaikan agar menempel pas di bawah surat */}
-            <div className="w-full max-w-[210mm] mt-4 sm:mt-6 z-10 shrink-0 px-4 sm:px-0 flex justify-center">
+            {/* Download Section */}
+            <div className="w-full max-w-[210mm] mt-4 sm:mt-6 z-10 shrink-0 px-4 sm:px-0 flex justify-center pb-8 sm:pb-0">
                 <div className="w-full bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="text-sm text-gray-500 hidden sm:block text-left">
-                      <p>Pastikan data sudah benar.</p>
+                      <p className="font-medium text-gray-700">Siap Cetak?</p>
+                      <p className="text-xs">Pastikan seluruh data sudah benar.</p>
                     </div>
                     <DownloadPDFButton 
                         targetRef={previewRef} 
@@ -85,8 +84,8 @@ const App: React.FC = () => {
                 </div>
             </div>
             
-            {/* Bottom spacer for FAB on mobile */}
-            <div className="h-24 shrink-0 lg:h-0 w-full"></div>
+            {/* Spacer bawah agar FAB tidak menutupi konten di mobile */}
+            <div className="h-20 shrink-0 lg:h-0 w-full block sm:hidden"></div>
           </div>
         </div>
 
@@ -95,7 +94,7 @@ const App: React.FC = () => {
       {/* Mobile Floating Action Button (FAB) */}
       <button
         onClick={() => setMobileTab(prev => prev === 'form' ? 'preview' : 'form')}
-        className="fixed bottom-6 right-6 lg:hidden bg-primary hover:bg-blue-600 text-white p-4 rounded-full shadow-lg transition-all transform hover:scale-105 active:scale-95 z-50 flex items-center justify-center border-2 border-white"
+        className="fixed bottom-6 right-6 lg:hidden bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg shadow-blue-600/30 transition-all transform hover:scale-105 active:scale-95 z-50 flex items-center justify-center border-2 border-white/20 backdrop-blur-sm"
         aria-label={mobileTab === 'form' ? "Lihat Preview" : "Edit Form"}
       >
         {mobileTab === 'form' ? (
