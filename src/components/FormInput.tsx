@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { SuratData } from '../types';
 import TTDUpload from './TTDUpload';
-import { Upload, ImagePlus, X } from 'lucide-react';
+import { Upload, X, ChevronDown, ChevronUp, Briefcase, Mail, User, FileText, PenTool } from 'lucide-react';
 
 interface FormInputProps {
   data: SuratData;
@@ -11,7 +11,55 @@ interface FormInputProps {
   onLogoChange: (url: string | null) => void;
 }
 
+// Komponen Helper untuk Accordion Item
+const AccordionItem = ({ 
+  title, 
+  icon: Icon, 
+  isOpen, 
+  onToggle, 
+  children 
+}: { 
+  title: string; 
+  icon: React.ElementType; 
+  isOpen: boolean; 
+  onToggle: () => void; 
+  children: React.ReactNode 
+}) => {
+  return (
+    <div className={`border rounded-xl transition-all duration-300 overflow-hidden mb-3 ${isOpen ? 'border-blue-400 bg-white ring-2 ring-blue-100' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
+      <button 
+        onClick={onToggle}
+        className={`w-full flex items-center justify-between p-4 text-left transition-colors cursor-pointer ${isOpen ? 'bg-gradient-to-r from-blue-50 to-white' : 'bg-white hover:bg-gray-50'}`}
+      >
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-lg transition-colors ${isOpen ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-100 text-gray-500'}`}>
+             <Icon size={18} strokeWidth={2.5} />
+          </div>
+          <span className={`font-bold text-sm sm:text-base ${isOpen ? 'text-blue-900' : 'text-gray-700'}`}>{title}</span>
+        </div>
+        {isOpen ? <ChevronUp size={20} className="text-blue-600" /> : <ChevronDown size={20} className="text-gray-400" />}
+      </button>
+      
+      <div 
+        // Max height besar agar konten panjang seperti canvas TTD tidak terpotong
+        className={`transition-all duration-500 ease-in-out origin-top ${isOpen ? 'max-h-[2500px] opacity-100 scale-100' : 'max-h-0 opacity-0 scale-95 py-0'}`}
+      >
+        <div className="p-4 sm:p-5 border-t border-gray-100 bg-white">
+           {children}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const FormInput: React.FC<FormInputProps> = ({ data, onChange, onTTDChange, onStempelChange, onLogoChange }) => {
+  // State untuk mengontrol bagian mana yang terbuka
+  const [openSection, setOpenSection] = useState<string | null>('kop');
+
+  const toggleSection = (section: string) => {
+    setOpenSection(prev => prev === section ? null : section);
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     onChange(e.target.name as keyof SuratData, e.target.value);
   };
@@ -38,276 +86,211 @@ const FormInput: React.FC<FormInputProps> = ({ data, onChange, onTTDChange, onSt
     }
   };
 
+  const InputGroup = ({ label, name, placeholder, type = "text" }: { label: string, name: keyof SuratData, placeholder?: string, type?: string }) => (
+    <div className="mb-4">
+      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">{label}</label>
+      <input
+        type={type}
+        name={name}
+        value={data[name] as string}
+        onChange={handleChange}
+        placeholder={placeholder}
+        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all outline-none"
+      />
+    </div>
+  );
+
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-full overflow-y-auto max-h-[calc(100vh-100px)] custom-scrollbar">
-      <h2 className="text-xl font-bold mb-6 text-gray-800 border-b pb-2">Detail Surat</h2>
+    // Gunakan 'block' normal (bukan flex) agar browser lebih mudah menghitung height konten untuk scrolling
+    // Spacer bottom (div kosong) akan ditambahkan di akhir untuk memaksa scroll
+    <div className="h-full overflow-y-auto custom-scrollbar pr-2 pl-1">
       
-      <div className="space-y-5">
-        {/* Identitas Perusahaan / Kop Surat */}
-        <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-            <h3 className="text-sm font-semibold text-blue-800 mb-3 flex items-center gap-2">
-                Identitas Perusahaan (Kop Surat)
-            </h3>
-            
-            <div className="mb-4 text-center">
-                 <input
+      {/* 1. KOP SURAT */}
+      <AccordionItem 
+        title="Identitas Perusahaan" 
+        icon={Briefcase} 
+        isOpen={openSection === 'kop'} 
+        onToggle={() => toggleSection('kop')}
+      >
+        <div className="mb-5">
+           <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Logo Perusahaan</label>
+           <div className="flex items-center gap-4">
+              {data.logoUrl ? (
+                <div className="relative group w-16 h-16 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-center overflow-hidden">
+                    <img src={data.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                    <button 
+                        onClick={() => onLogoChange(null)}
+                        className="absolute inset-0 bg-black/50 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center transition"
+                    >
+                        <X size={16} />
+                    </button>
+                </div>
+              ) : (
+                <div className="w-16 h-16 bg-gray-50 rounded-lg border border-dashed border-gray-300 flex items-center justify-center text-gray-400">
+                    <Briefcase size={20} />
+                </div>
+              )}
+              <div className="flex-1">
+                  <input
                     type="file"
                     accept="image/*"
                     onChange={handleLogoUpload}
                     className="hidden"
                     id="logo-upload"
-                />
-                
-                {data.logoUrl ? (
-                    <div className="relative w-full h-24 border-2 border-solid border-blue-200 bg-white rounded-md flex items-center justify-center group">
-                        <img src={data.logoUrl} alt="Logo" className="h-20 object-contain" />
+                  />
+                  <label 
+                    htmlFor="logo-upload"
+                    className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition shadow-sm"
+                  >
+                    <Upload size={16} />
+                    <span>Upload Logo</span>
+                  </label>
+                  <p className="text-[10px] text-gray-400 mt-1">Format: PNG/JPG (Transparan disarankan)</p>
+              </div>
+           </div>
+        </div>
+
+        <InputGroup label="Nama Perusahaan" name="namaPerusahaan" placeholder="Contoh: PT. Maju Jaya" />
+        <div className="mb-4">
+          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Alamat Lengkap</label>
+          <textarea
+            name="alamatPerusahaan"
+            value={data.alamatPerusahaan}
+            onChange={handleChange}
+            rows={2}
+            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all outline-none resize-none"
+            placeholder="Jalan..."
+          />
+        </div>
+        <InputGroup label="Kontak (Telp/Fax)" name="kontakPerusahaan" placeholder="Telp. (021) ..." />
+        <InputGroup label="Email / Website" name="emailWebsite" placeholder="email@example.com" />
+      </AccordionItem>
+
+      {/* 2. DETAIL SURAT */}
+      <AccordionItem 
+        title="Detail Surat" 
+        icon={FileText} 
+        isOpen={openSection === 'detail'} 
+        onToggle={() => toggleSection('detail')}
+      >
+        <div className="grid grid-cols-2 gap-4">
+             <InputGroup label="Nomor Surat" name="nomor" placeholder="001/XII/2024" />
+             <InputGroup label="Lampiran" name="lampiran" placeholder="- / 1 Berkas" />
+        </div>
+        <InputGroup label="Perihal" name="hal" placeholder="Penawaran Harga..." />
+        
+        <div className="grid grid-cols-2 gap-4">
+            <InputGroup label="Tempat" name="tempatSurat" placeholder="Jakarta" />
+            <InputGroup label="Tanggal" name="tanggalSurat" placeholder="20 Agustus 2024" />
+        </div>
+      </AccordionItem>
+
+      {/* 3. PENERIMA */}
+      <AccordionItem 
+        title="Penerima Surat" 
+        icon={User} 
+        isOpen={openSection === 'penerima'} 
+        onToggle={() => toggleSection('penerima')}
+      >
+         <InputGroup label="Nama / Instansi Penerima" name="namaPenerima" placeholder="Bpk. Budi / PT. Sejahtera" />
+         <div className="mb-4">
+          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Alamat Penerima</label>
+          <textarea
+            name="alamatPenerima"
+            value={data.alamatPenerima}
+            onChange={handleChange}
+            rows={2}
+            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all outline-none resize-none"
+            placeholder="Jalan..."
+          />
+        </div>
+         <InputGroup label="Kota / Provinsi" name="kotaProvinsi" placeholder="Jakarta Selatan" />
+      </AccordionItem>
+
+      {/* 4. ISI SURAT */}
+      <AccordionItem 
+        title="Isi Surat" 
+        icon={Mail} 
+        isOpen={openSection === 'isi'} 
+        onToggle={() => toggleSection('isi')}
+      >
+        <div className="mb-2">
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Konten Surat</label>
+            <textarea
+                name="isiSurat"
+                value={data.isiSurat}
+                onChange={handleChange}
+                rows={12}
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all outline-none leading-relaxed"
+                placeholder="Tulis isi surat di sini..."
+            />
+            <p className="text-[10px] text-gray-400 mt-2 text-right">Tekan Enter untuk membuat paragraf baru.</p>
+        </div>
+      </AccordionItem>
+
+      {/* 5. PENGIRIM & TTD */}
+      <AccordionItem 
+        title="Pengirim & Tanda Tangan" 
+        icon={PenTool} 
+        isOpen={openSection === 'ttd'} 
+        onToggle={() => toggleSection('ttd')}
+      >
+        <div className="grid grid-cols-2 gap-4">
+             <InputGroup label="Nama Pengirim" name="namaPengirim" placeholder="Nama Lengkap" />
+             <InputGroup label="Jabatan" name="jabatan" placeholder="Direktur Utama" />
+        </div>
+
+        <div className="mt-6 border-t border-dashed border-gray-200 pt-4">
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Tanda Tangan</label>
+            <TTDUpload onUpdate={onTTDChange} initialValue={data.ttdUrl} />
+        </div>
+
+        <div className="mt-6 border-t border-dashed border-gray-200 pt-4">
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Stempel Perusahaan</label>
+            <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                {data.stempelUrl ? (
+                    <div className="relative w-24 h-24 bg-white rounded border border-gray-200 shadow-sm flex items-center justify-center p-2">
+                        <img src={data.stempelUrl} alt="Stempel" className="max-w-full max-h-full object-contain" />
                         <button 
-                            onClick={() => onLogoChange(null)}
-                            className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow-md transition-all transform hover:scale-110"
-                            title="Hapus Logo"
+                            onClick={() => onStempelChange(null)}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow hover:bg-red-600 transition"
                         >
                             <X size={14} />
                         </button>
                     </div>
                 ) : (
-                    <label 
-                        htmlFor="logo-upload" 
-                        className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-blue-300 rounded-md cursor-pointer hover:bg-blue-100 transition"
-                    >
-                        <ImagePlus className="text-blue-400 mb-1" size={24} />
-                        <span className="text-xs text-blue-500">Upload Logo Perusahaan</span>
-                    </label>
-                )}
-            </div>
-
-            <div className="space-y-3">
-                <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Nama Perusahaan</label>
-                    <input
-                        type="text"
-                        name="namaPerusahaan"
-                        value={data.namaPerusahaan}
-                        onChange={handleChange}
-                        className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                        placeholder="Contoh: PT Rocket Manajemen"
-                    />
-                </div>
-                <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Alamat Lengkap</label>
-                    <input
-                        type="text"
-                        name="alamatPerusahaan"
-                        value={data.alamatPerusahaan}
-                        onChange={handleChange}
-                        className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                        placeholder="Alamat kantor..."
-                    />
-                </div>
-                <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Kontak (Telp/Fax)</label>
-                    <input
-                        type="text"
-                        name="kontakPerusahaan"
-                        value={data.kontakPerusahaan}
-                        onChange={handleChange}
-                        className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                        placeholder="Telp: ... Fax: ..."
-                    />
-                </div>
-                 <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Email / Website</label>
-                    <input
-                        type="text"
-                        name="emailWebsite"
-                        value={data.emailWebsite}
-                        onChange={handleChange}
-                        className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                        placeholder="Email & Website..."
-                    />
-                </div>
-            </div>
-        </div>
-
-        {/* Identitas Surat */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nomor Surat</label>
-            <input
-              type="text"
-              name="nomor"
-              value={data.nomor}
-              onChange={handleChange}
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary outline-none text-sm"
-              placeholder="Contoh: 89/XII/II/2026"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tempat & Tanggal</label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                name="tempatSurat"
-                value={data.tempatSurat}
-                onChange={handleChange}
-                className="w-1/2 p-2 border border-gray-300 rounded-md text-sm"
-                placeholder="Kota"
-              />
-              <input
-                type="text"
-                name="tanggalSurat"
-                value={data.tanggalSurat}
-                onChange={handleChange}
-                className="w-1/2 p-2 border border-gray-300 rounded-md text-sm"
-                placeholder="Tanggal"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Lampiran</label>
-            <input
-              type="text"
-              name="lampiran"
-              value={data.lampiran}
-              onChange={handleChange}
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary outline-none text-sm"
-            />
-        </div>
-
-        <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Hal / Perihal</label>
-            <input
-              type="text"
-              name="hal"
-              value={data.hal}
-              onChange={handleChange}
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary outline-none text-sm"
-            />
-        </div>
-
-        {/* Penerima */}
-        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Tujuan / Penerima</h3>
-            <div className="space-y-3">
-                <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Nama Penerima</label>
-                    <input
-                    type="text"
-                    name="namaPenerima"
-                    value={data.namaPenerima}
-                    onChange={handleChange}
-                    className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                    />
-                </div>
-                <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Alamat Penerima</label>
-                    <input
-                    type="text"
-                    name="alamatPenerima"
-                    value={data.alamatPenerima}
-                    onChange={handleChange}
-                    className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                    />
-                </div>
-                <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Kota / Provinsi</label>
-                    <input
-                    type="text"
-                    name="kotaProvinsi"
-                    value={data.kotaProvinsi}
-                    onChange={handleChange}
-                    className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                    />
-                </div>
-            </div>
-        </div>
-
-        {/* Isi Surat */}
-        <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Isi Surat</label>
-            <textarea
-              name="isiSurat"
-              value={data.isiSurat}
-              onChange={handleChange}
-              rows={8}
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary outline-none text-sm"
-              placeholder="Tuliskan isi surat disini..."
-            />
-            <p className="text-xs text-gray-500 mt-1">Gunakan enter untuk baris baru.</p>
-        </div>
-
-        {/* Pengirim & Legalitas */}
-        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Identitas Pengirim</h3>
-            <div className="grid grid-cols-2 gap-3 mb-4">
-                <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Nama Pengirim</label>
-                    <input
-                    type="text"
-                    name="namaPengirim"
-                    value={data.namaPengirim}
-                    onChange={handleChange}
-                    className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                    />
-                </div>
-                <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Jabatan</label>
-                    <input
-                    type="text"
-                    name="jabatan"
-                    value={data.jabatan}
-                    onChange={handleChange}
-                    className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                    />
-                </div>
-            </div>
-
-            <div className="space-y-4">
-                <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-2">Tanda Tangan</label>
-                    <TTDUpload onUpdate={onTTDChange} initialValue={data.ttdUrl} />
-                </div>
-                
-                <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-2">Stempel (Opsional)</label>
-                    
-                    {data.stempelUrl ? (
-                         <div className="relative flex items-center justify-between p-3 bg-white border border-gray-200 rounded-md">
-                            <div className="flex items-center gap-3">
-                                <img src={data.stempelUrl} alt="Stempel" className="h-10 w-10 object-contain rounded-full border border-gray-100" />
-                                <span className="text-sm text-gray-600">Stempel terpasang</span>
-                            </div>
-                            <button 
-                                onClick={() => onStempelChange(null)}
-                                className="bg-red-50 text-red-500 p-2 rounded-full hover:bg-red-100 transition"
-                                title="Hapus Stempel"
-                            >
-                                <X size={16} />
-                            </button>
-                         </div>
-                    ) : (
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="file"
-                                accept="image/*"
-                                onChange={handleStempelUpload}
-                                className="hidden"
-                                id="stempel-upload"
-                            />
-                            <label 
-                                htmlFor="stempel-upload" 
-                                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md text-sm text-gray-700 cursor-pointer hover:bg-gray-50 w-full justify-center border-dashed"
-                            >
-                                <Upload size={16} /> Pilih Gambar Stempel
-                            </label>
+                    <div className="w-24 h-24 bg-white rounded border border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 gap-1 text-center p-2">
+                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                            <Upload size={14} />
                         </div>
-                    )}
+                        <span className="text-[9px]">Belum ada</span>
+                    </div>
+                )}
+                
+                <div className="flex-1">
+                     <p className="text-sm font-medium text-gray-700 mb-2">Upload Gambar Stempel</p>
+                     <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleStempelUpload}
+                        className="hidden"
+                        id="stempel-upload"
+                    />
+                    <label 
+                        htmlFor="stempel-upload"
+                        className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition"
+                    >
+                        <Upload size={14} />
+                        <span>Pilih File</span>
+                    </label>
+                    <p className="text-[10px] text-gray-400 mt-2">Gunakan file PNG transparan agar hasil stempel terlihat menyatu dengan kertas.</p>
                 </div>
             </div>
         </div>
+      </AccordionItem>
 
-      </div>
+      {/* SPACER FISIK: Memastikan konten paling bawah bisa di-scroll jauh ke atas (melewati FAB) */}
+      <div className="h-64 sm:h-24 w-full bg-transparent shrink-0"></div>
     </div>
   );
 };

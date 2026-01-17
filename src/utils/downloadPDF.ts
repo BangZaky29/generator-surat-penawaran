@@ -6,66 +6,105 @@ export const downloadPDF = async (ref: React.RefObject<HTMLDivElement>, filename
   const element = ref.current;
   if (!element) return false;
 
-  // 1. Setup container sementara dengan ukuran fixed A4 (dalam pixel di 96 DPI)
-  // Menggunakan pixel lebih stabil untuk html2canvas daripada mm
-  const a4WidthPx = 794; // approx 210mm @ 96dpi
+  // KONFIGURASI A4 (mm)
+  const PDF_WIDTH_MM = 210;
+  const PDF_HEIGHT_MM = 297;
   
+  // 1. SETUP CONTAINER KHUSUS EXPORT
+  // Container ini dibuat tersembunyi tapi dirender di DOM untuk memastikan font dan layout konsisten
   const container = document.createElement('div');
-  container.style.position = 'fixed';
+  container.style.position = 'fixed'; 
   container.style.top = '-10000px';
   container.style.left = '-10000px';
-  container.style.zIndex = '-100';
-  // PENTING: Set lebar fix agar layout teks sama persis dengan preview desktop
-  container.style.width = `${a4WidthPx}px`; 
-  container.style.height = 'auto'; // Biarkan tinggi mengikuti konten
-  container.style.backgroundColor = '#ffffff';
+  container.style.zIndex = '-1000';
+  container.style.width = '210mm'; 
   
-  // 2. Clone element
+  // 2. CLONE ELEMENT
   const clone = element.cloneNode(true) as HTMLElement;
   
-  // Reset style clone untuk memastikan pas di container
+  // Normalisasi style clone
   clone.style.transform = 'none';
   clone.style.margin = '0';
-  clone.style.padding = '25mm'; // Pastikan padding hardcoded sesuai PreviewSurat
+  clone.style.padding = '25.4mm'; 
   clone.style.boxShadow = 'none';
-  clone.style.width = '100%'; // Full width container
-  clone.style.height = 'auto';
-  clone.style.minHeight = '1123px'; // approx 297mm (A4 height)
-  
+  clone.style.width = '210mm'; 
+  clone.style.height = 'auto'; 
+  clone.style.minHeight = '297mm';
+  clone.style.backgroundColor = '#ffffff';
+
+  // HAPUS VISUAL GUIDE
+  const guides = clone.querySelectorAll('[data-visual-guide="true"]');
+  guides.forEach(el => el.remove());
+
+  // KONVERSI TEXTAREA KE DIV (PENTING UNTUK HASIL PDF YANG RAPI)
+  // html2canvas sering bermasalah render textarea penuh, jadi kita ganti dengan div statis
+  const originalTextareas = element.querySelectorAll('textarea');
+  const clonedTextareas = clone.querySelectorAll('textarea');
+
+  originalTextareas.forEach((orig, index) => {
+    const cloned = clonedTextareas[index];
+    if (cloned) {
+        const div = document.createElement('div');
+        // Salin style teks penting
+        div.style.fontFamily = getComputedStyle(orig).fontFamily;
+        div.style.fontSize = getComputedStyle(orig).fontSize;
+        div.style.lineHeight = getComputedStyle(orig).lineHeight;
+        div.style.textAlign = getComputedStyle(orig).textAlign;
+        div.style.color = getComputedStyle(orig).color;
+        
+        div.style.width = '100%';
+        div.style.whiteSpace = 'pre-wrap'; // Pertahankan enter/spasi
+        div.style.wordBreak = 'break-word';
+        div.textContent = orig.value; // Ambil value asli, bukan attribute value
+
+        cloned.replaceWith(div);
+    }
+  });
+
   container.appendChild(clone);
   document.body.appendChild(container);
 
-  // Tunggu sebentar untuk memastikan render font/image selesai di clone
-  await new Promise(resolve => setTimeout(resolve, 100));
+  // Tunggu sebentar untuk rendering
+  await new Promise(resolve => setTimeout(resolve, 800)); 
 
   try {
-    // 3. Capture dengan html2canvas
+    // 3. CAPTURE CANVAS
+    const scale = 2; // High quality
+
     const canvas = await html2canvas(clone, {
-      scale: 2, // Kualitas retina (2x) agar teks tajam
+      scale: scale, 
       useCORS: true,
       logging: false,
       backgroundColor: '#ffffff',
-      width: a4WidthPx, // Paksa lebar capture sesuai container
-      windowWidth: 1200, // Simulasi window desktop
+      windowWidth: 800, 
     });
 
-    const imgData = canvas.toDataURL('image/jpeg', 1.0);
-    
-    // 4. Setup PDF (A4)
+    // 4. GENERATE PDF (SLICING)
     const pdf = new jsPDF('p', 'mm', 'a4');
-    const pdfWidth = 210; // Lebar A4 dalam mm
-    const pdfPageHeight = 297; // Tinggi A4 dalam mm
     
-    // 5. Hitung tinggi gambar berdasarkan rasio asli Canvas
-    // Ini adalah KUNCI agar gambar tidak "PEYANG" (distorsi).
-    // Rumus: Tinggi PDF = (Tinggi Canvas / Lebar Canvas) * Lebar PDF
-    const imgProps = pdf.getImageProperties(imgData);
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    const imgWidthPx = canvas.width;
+    const imgHeightPx = canvas.height;
 
-    // Masukkan gambar. 
-    // Jika konten lebih panjang dari 1 halaman, logic ini akan memanjangkan gambar (bisa terpotong saat print fisik jika > 297mm).
-    // Tapi secara visual digital file PDF akan proporsional (tidak gepeng).
-    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+    const pxToMm = PDF_WIDTH_MM / imgWidthPx;
+    const imgHeightMm = imgHeightPx * pxToMm;
+
+    const pageHeightMm = PDF_HEIGHT_MM; 
+    
+    let heightLeftMm = imgHeightMm;
+    let positionMm = 0;
+
+    // --- HALAMAN PERTAMA ---
+    pdf.addImage(imgData, 'JPEG', 0, positionMm, PDF_WIDTH_MM, imgHeightMm);
+    heightLeftMm -= pageHeightMm;
+
+    // --- HALAMAN BERIKUTNYA ---
+    while (heightLeftMm > 0) {
+      positionMm = heightLeftMm - imgHeightMm; 
+      pdf.addPage();
+      pdf.addImage(imgData, 'JPEG', 0, positionMm, PDF_WIDTH_MM, imgHeightMm);
+      heightLeftMm -= pageHeightMm;
+    }
     
     pdf.save(`${filename}.pdf`);
     return true;
@@ -75,7 +114,6 @@ export const downloadPDF = async (ref: React.RefObject<HTMLDivElement>, filename
     alert('Gagal membuat PDF. Silakan coba lagi.');
     return false;
   } finally {
-    // 6. Cleanup
     if (document.body.contains(container)) {
       document.body.removeChild(container);
     }
