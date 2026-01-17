@@ -57,7 +57,6 @@ const PreviewSurat = forwardRef<HTMLDivElement, PreviewSuratProps>(({ data, onIs
 
     const observer = new ResizeObserver(updatePages);
     observer.observe(internalRef.current);
-    // Timeout kecil untuk memastikan rendering selesai
     const timeoutId = setTimeout(updatePages, 100);
 
     return () => {
@@ -87,7 +86,6 @@ const PreviewSurat = forwardRef<HTMLDivElement, PreviewSuratProps>(({ data, onIs
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setLocalIsiSurat(val);
-    // Update parent secara realtime agar seamless saat toggle
     if (onIsiSuratChange) {
         onIsiSuratChange(val);
     }
@@ -105,10 +103,10 @@ const PreviewSurat = forwardRef<HTMLDivElement, PreviewSuratProps>(({ data, onIs
         {marginZones.map((zone) => (
             <div 
                 key={zone.id}
-                className={`absolute w-full flex flex-col items-center justify-center transition-all duration-300
+                className={`absolute w-full flex flex-col items-center justify-center transition-all duration-300 backdrop-blur-[1px]
                     ${isEditing 
-                        ? 'bg-red-500/10 border-y border-red-500/30' // Mode Edit: Merah Transparan (Warning)
-                        : 'bg-gray-200/50 border-y border-gray-300 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)]' // Mode Default: Abu-abu (Celah Kertas)
+                        ? 'bg-red-500/10 border-y border-red-500/30' // Mode Edit: Merah Warning
+                        : 'bg-gray-400/20 border-y border-dashed border-gray-400/50' // Mode Default: Abu-abu Soft
                     }`}
                 style={{ 
                     top: `${zone.topMm}mm`,
@@ -116,28 +114,39 @@ const PreviewSurat = forwardRef<HTMLDivElement, PreviewSuratProps>(({ data, onIs
                     zIndex: 50
                 }}
             >
-                {/* Garis Tengah Putus-putus */}
-                <div className={`absolute w-full border-b border-dashed transition-colors duration-300 ${isEditing ? 'border-red-400/50' : 'border-gray-400/20'}`} style={{ top: '50%' }}></div>
+                {/* Garis Tengah */}
+                <div className={`absolute w-full border-b transition-colors duration-300 ${isEditing ? 'border-dashed border-red-400/50' : 'border-dotted border-gray-500/30'}`} style={{ top: '50%' }}></div>
                 
-                {/* Peringatan hanya muncul saat Mode Edit */}
-                {isEditing && (
-                    <div className="bg-white/60 backdrop-blur-[2px] px-4 py-2 rounded-lg border border-red-200/60 text-red-700 shadow-sm flex flex-col items-center gap-1 text-center animate-in fade-in zoom-in duration-300 max-w-[80%]">
-                        <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                            ⛔ AREA MARGIN (Halaman Terpisah)
+                {/* BADGE INDIKATOR (Muncul di kedua mode dengan style berbeda) */}
+                <div className={`
+                    px-3 py-1.5 rounded-lg border shadow-sm flex flex-col items-center gap-0.5 text-center max-w-[80%] transition-all duration-300
+                    ${isEditing 
+                        ? 'bg-white/80 border-red-200 text-red-700' // Style Edit
+                        : 'bg-white/60 border-gray-300 text-gray-600' // Style Default
+                    }
+                `}>
+                    <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                        {isEditing ? '⛔ AREA MARGIN (TERPOTONG)' : '✂️ PEMISAH HALAMAN'}
+                    </span>
+                    
+                    {/* Pesan detail berbeda per mode */}
+                    {isEditing ? (
+                        <span className="text-[9px] font-medium leading-tight">
+                            Teks di area ini akan terpotong.<br/>Tekan <b>ENTER</b> untuk pindah ke bawah.
                         </span>
-                        <span className="text-[9px] font-medium leading-tight opacity-80">
-                            Teks di area merah ini akan terpotong. <br/> 
-                            Tekan <b>ENTER</b> untuk memindahkannya ke bawah garis.
+                    ) : (
+                        <span className="text-[8px] font-medium leading-tight opacity-80">
+                            Batas kertas A4. Area ini tidak tercetak.
                         </span>
-                    </div>
-                )}
-                
-                {/* Indikator halaman */}
-                <div className={`absolute left-2 top-2 text-[9px] font-mono transition-colors ${isEditing ? 'text-red-400 font-semibold' : 'text-gray-400'}`}>
-                    Akhir Hal {zone.pageNumber}
+                    )}
                 </div>
-                <div className={`absolute left-2 bottom-2 text-[9px] font-mono transition-colors ${isEditing ? 'text-red-400 font-semibold' : 'text-gray-400'}`}>
-                    Awal Hal {zone.nextPageNumber}
+                
+                {/* Indikator halaman di pojok */}
+                <div className={`absolute left-2 top-2 text-[9px] font-mono transition-colors ${isEditing ? 'text-red-400 font-semibold' : 'text-gray-500'}`}>
+                    Hal {zone.pageNumber}
+                </div>
+                <div className={`absolute left-2 bottom-2 text-[9px] font-mono transition-colors ${isEditing ? 'text-red-400 font-semibold' : 'text-gray-500'}`}>
+                    Hal {zone.nextPageNumber}
                 </div>
             </div>
         ))}
@@ -225,7 +234,7 @@ const PreviewSurat = forwardRef<HTMLDivElement, PreviewSuratProps>(({ data, onIs
             <div className="">{data.kotaProvinsi}</div>
         </div>
   
-        {/* === ISI SURAT (CONDITIONAL RENDER) === */}
+        {/* === ISI SURAT === */}
         <div className="mb-4 min-h-[100px] w-full relative">
             {isEditing ? (
                 <textarea
