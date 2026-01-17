@@ -1,0 +1,5 @@
+{
+  "name": "Generator Surat Penawaran",
+  "description": "Aplikasi React TypeScript untuk membuat surat penawaran profesional dengan fitur tanda tangan digital (canvas/upload) dan ekspor PDF.",
+  "requestFramePermissions": []
+}
